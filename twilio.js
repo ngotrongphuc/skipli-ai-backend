@@ -1,5 +1,7 @@
-const accountSid = "ACc42d799aa30b7ac6dcbe2d8dc9b32f97";
-const authToken = "cf0064512642cf623b55280d408a03a0";
+require("dotenv").config();
+
+const accountSid = process.env.ACCOUNT_SID;
+const authToken = process.env.AUTH_TOKEN;
 const client = require("twilio")(accountSid, authToken);
 
 const validatePhoneNumber = async (phoneNumber) => {
