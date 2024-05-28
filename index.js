@@ -35,10 +35,9 @@ app.post("/create-new-access-code", async (req, res) => {
 
     await db.ref(`/users/${phoneNumber}/otp`).set(newOtp);
     await sendMessage(phoneNumber, newOtp);
-    console.log(phoneNumber, newOtp);
+    console.log(newOtp);
     res.send(newOtp);
   } catch (error) {
-    console.log(error);
     res.status(500).send(error.message);
   }
 });
@@ -65,7 +64,6 @@ app.post("/generate-post-captions", async (req, res) => {
   try {
     const data = req.body;
     const { socialNetwork, subject, tone } = data;
-    console.log(socialNetwork, subject, tone);
 
     const result = await generateCaptions(5, socialNetwork, subject, tone);
 
@@ -79,7 +77,6 @@ app.post("/generate-post-ideas", async (req, res) => {
   try {
     const data = req.body;
     const { topic } = data;
-    console.log(topic);
 
     const result = await generatePostIdeas(10, topic);
 
@@ -93,7 +90,6 @@ app.post("/generate-captions-from-ideas", async (req, res) => {
   try {
     const data = req.body;
     const { idea } = data;
-    console.log(idea);
 
     const result = await generateCaptionsFromPostIdea(5, idea);
 
@@ -153,7 +149,6 @@ app.get("/get-user-generated-contents", async (req, res) => {
   try {
     const data = req.query;
     const { phoneNumber } = data;
-    console.log(phoneNumber);
 
     const snapshot = await db
       .ref(`/users/${phoneNumber}/contents`)
