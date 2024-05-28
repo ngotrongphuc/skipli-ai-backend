@@ -35,7 +35,7 @@ app.post("/create-new-access-code", async (req, res) => {
 
     await db.ref(`/users/${phoneNumber}/otp`).set(newOtp);
     await sendMessage(phoneNumber, newOtp);
-    console.log(newOtp);
+    console.log("Your OTP is: " + newOtp);
     res.send(newOtp);
   } catch (error) {
     res.status(500).send(error.message);
