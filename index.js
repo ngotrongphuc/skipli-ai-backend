@@ -48,10 +48,10 @@ app.post("/validate-access-code", async (req, res) => {
     const data = req.body;
     const { accessCode, phoneNumber } = data;
     const otpRef = db.ref(`/users/${phoneNumber}/otp`);
-    const value = await db.ref(otpRef).once("value");
+    const snapshot = await otpRef.once("value");
 
     let result = { success: false };
-    if (accessCode === value.val()) {
+    if (accessCode === snapshot.val()) {
       result.success = true;
       await otpRef.set("");
     }
@@ -75,7 +75,7 @@ app.post("/generate-post-captions", async (req, res) => {
   }
 });
 
-app.post("/get-post-ideas", async (req, res) => {
+app.post("/generate-post-ideas", async (req, res) => {
   try {
     const data = req.body;
     const { topic } = data;
@@ -89,7 +89,7 @@ app.post("/get-post-ideas", async (req, res) => {
   }
 });
 
-app.post("/create-captions-from-ideas", async (req, res) => {
+app.post("/generate-captions-from-ideas", async (req, res) => {
   try {
     const data = req.body;
     const { idea } = data;
@@ -103,16 +103,47 @@ app.post("/create-captions-from-ideas", async (req, res) => {
   }
 });
 
-app.post("/save-generated-content", async (req, res) => {
+app.post("/save-content", async (req, res) => {
   try {
     const data = req.body;
-    const { phoneNumber, caption } = data;
-    const id = db.ref().push().key;
-    const captionRef = db.ref(`/users/${phoneNumber}/contents/${id}`);
+    const { phoneNumber, subject, caption } = data;
+    const contentsRef = db.ref(`/users/${phoneNumber}/contents`);
+    let contentId = null;
+    let captionId = null;
 
-    await captionRef.set(caption);
+    const snapshot = await contentsRef
+      .orderByChild("subject")
+      .equalTo(subject)
+      .once("value");
 
-    res.send({ success: true, captionId: id });
+    // create new content object if not exist
+    if (!snapshot.exists()) {
+      contentId = db.ref(contentsRef).push().key;
+      captionId = db
+        .ref(contentsRef)
+        .child(contentId)
+        .child("captions")
+        .push().key;
+      await contentsRef
+        .child(contentId)
+        .set({ subject, captions: { [captionId]: caption } });
+    } else {
+      // add caption to existed content
+      snapshot.forEach((childSnapshot) => {
+        contentId = childSnapshot.key;
+      });
+      captionId = db
+        .ref(contentsRef)
+        .child(contentId)
+        .child("captions")
+        .push().key;
+      await contentsRef
+        .child(contentId)
+        .child("captions")
+        .update({ [captionId]: caption });
+    }
+
+    res.send({ success: true, contentId, captionId });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -124,8 +155,10 @@ app.get("/get-user-generated-contents", async (req, res) => {
     const { phoneNumber } = data;
     console.log(phoneNumber);
 
-    const value = await db.ref(`/users/${phoneNumber}/contents`).once("value");
-    const result = value.val();
+    const snapshot = await db
+      .ref(`/users/${phoneNumber}/contents`)
+      .once("value");
+    const result = snapshot.val();
 
     res.send(result);
   } catch (error) {
@@ -136,10 +169,23 @@ app.get("/get-user-generated-contents", async (req, res) => {
 app.post("/unsave-content", async (req, res) => {
   try {
     const data = req.body;
-    const { phoneNumber, captionId } = data;
-    const captionRef = db.ref(`/users/${phoneNumber}/contents/${captionId}`);
+    const { phoneNumber, contentId, captionId } = data;
+    const contentsRef = db.ref(`/users/${phoneNumber}/contents`);
 
-    await captionRef.remove();
+    await contentsRef
+      .child(contentId)
+      .child("captions")
+      .child(captionId)
+      .remove();
+
+    // delete content if it doesn't contains any caption
+    const snapshot = await contentsRef
+      .child(contentId)
+      .child("captions")
+      .once("value");
+    if (!snapshot.exists()) {
+      await contentsRef.child(contentId).remove();
+    }
 
     res.send({ success: true });
   } catch (error) {
